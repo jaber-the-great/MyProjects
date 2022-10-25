@@ -1,0 +1,15 @@
+main DSTACK_USAGE:0 DSTACK_LEVEL:0 FILE:"f.c" LINE:84
+initGame DSTACK_USAGE:4 DSTACK_LEVEL:4 FILE:"f.c" LINE:619
+printScoreBoard DSTACK_USAGE:16 DSTACK_LEVEL:20 FILE:"f.c" LINE:58
+glcd_circle DSTACK_USAGE:3 DSTACK_LEVEL:23 FILE:"C:\cvavr\lib\graphics.lib" LINE:1439
+glcd_quadrant DSTACK_USAGE:10 DSTACK_LEVEL:33 FILE:"C:\cvavr\lib\graphics.lib" LINE:1389
+glcd_line2 DSTACK_USAGE:8 DSTACK_LEVEL:41 FILE:"C:\cvavr\lib\graphics.lib" LINE:1361
+glcd_line DSTACK_USAGE:21 DSTACK_LEVEL:62 FILE:"C:\cvavr\lib\graphics.lib" LINE:778
+glcd_putpixelm DSTACK_USAGE:3 DSTACK_LEVEL:65 FILE:"C:\cvavr\lib\graphics.lib" LINE:737
+glcd_putpixel DSTACK_USAGE:5 DSTACK_LEVEL:70 FILE:"C:\cvavr\lib\glcd_ks0108.lib" LINE:518
+ks0108_rdbyte DSTACK_USAGE:2 DSTACK_LEVEL:72 FILE:"C:\cvavr\lib\glcd_ks0108.lib" LINE:372
+ks0108_gotoxp DSTACK_USAGE:2 DSTACK_LEVEL:74 FILE:"C:\cvavr\lib\glcd_ks0108.lib" LINE:279
+ks0108_setloc DSTACK_USAGE:0 DSTACK_LEVEL:74 FILE:"C:\cvavr\lib\glcd_ks0108.lib" LINE:268
+ks0108_wrcmd DSTACK_USAGE:2 DSTACK_LEVEL:76 FILE:"C:\cvavr\lib\glcd_ks0108.lib" LINE:228
+ks0108_busy DSTACK_USAGE:2 DSTACK_LEVEL:78 FILE:"C:\cvavr\lib\glcd_ks0108.lib" LINE:152
+ks0108_rdbus DSTACK_USAGE:1 DSTACK_LEVEL:79 FILE:"C:\cvavr\lib\glcd_ks0108.lib" LINE:122

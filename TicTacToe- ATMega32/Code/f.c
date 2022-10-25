@@ -1,0 +1,794 @@
+/*******************************************************
+This program was created by the
+CodeWizardAVR V3.12 Advanced
+Automatic Program Generator
+© Copyright 1998-2014 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+Project : 
+Version : 
+Date    : 7/1/2017
+Author  : 
+Company : 
+Comments: 
+
+
+Chip type               : ATmega32
+Program type            : Application
+AVR Core Clock frequency: 8.000000 MHz
+Memory model            : Small
+External RAM size       : 0
+Data Stack size         : 512
+*******************************************************/
+
+#include <mega32.h>
+#include <delay.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+// Graphic Display functions
+#include <glcd.h>
+
+// Font used for displaying text
+// on the graphic display
+#include <font5x7.h>
+#define INF 100
+#define USER 1
+#define COMPUTER 0
+// Declare your global variables here
+char board[3][3] = {INF, INF, INF, INF, INF, INF, INF, INF, INF};
+bool isCrossTurn = 1, gameStarter = 1;
+int x, y, moveNo = 1;
+int key, comScore = 0, usrScore = 0;
+
+// functions 
+void init();
+void initGame();
+void drawCrossOrCircle(int x, int y, bool isCross);
+char readkey(int *x, int *y);
+void updateBoard(int x, int y, bool isCrossTurn);
+void handup();
+int evaluate(char board[3][3]); // 1 => winner: cross, 0 => winner: circle, -INF => draw, ongoing => INF
+void computerToMove(char board[3][3], int *x, int *y, int moveNo, bool turn);
+
+// utility
+bool moveForWin(int *x, int *y, bool turn);
+bool moveForNotToLose(int *x, int *y, bool turn);
+bool randMove(int *x, int *y);
+void printScoreBoard() {
+    char str[16];
+    glcd_line(1, 1, 11, 11);
+    glcd_line(1, 11, 11, 1);
+    glcd_circle(7, 20, 6);  
+    
+    sprintf(str, "Usr: %d", usrScore);
+    glcd_outtextxy(15, 5, str);
+    sprintf(str, "cmp: %d", comScore);
+    glcd_outtextxy(15, 18, str);
+    }
+    /*
+    glcd_putcharxy(0, 10, board[0][0] + 48); 
+    glcd_putcharxy(0, 20, board[1][0]+ 48);
+    glcd_putcharxy(0, 30, board[2][0]+ 48); 
+    
+    glcd_putcharxy(15, 10, board[0][1]+ 48);
+    glcd_putcharxy(15, 20, board[1][1]+ 48);
+    glcd_putcharxy(15, 30, board[2][1]+ 48);
+    
+    glcd_putcharxy(30, 10, board[0][2]+ 48);
+    glcd_putcharxy(30, 20, board[1][2]+ 48);
+    glcd_putcharxy(30, 30, board[2][2]+ 48);
+    */
+   // glcd_putcharxy(0, 40, key + 48);
+
+void main(void)
+{                                                                                                                            
+// Declare your local variables here
+    init();
+    initGame(); 
+    moveNo++;
+while (1)
+      {
+      // Place your code here  
+      if (isCrossTurn == 1) {    
+            key = readkey(&x, &y); // human turn
+        } else {
+            key = 2; // dumy value  
+            computerToMove(board, &x, &y, moveNo, isCrossTurn); // computer turn 
+        } 
+        //key = readkey(&x, &y); 
+        if (board[x][y] != INF)
+            key = 100;
+        
+        if (key != 100) {     
+            drawCrossOrCircle(x, y, isCrossTurn);   
+            updateBoard(x, y, isCrossTurn);
+            key = evaluate(board);
+            
+            if (key != INF) {
+                //glcd_clear();   
+                if (key == USER) { 
+                    glcd_outtextxy(1, 50, "Player won");
+                    usrScore++;
+                }
+                else if (key == COMPUTER) {                     
+                    glcd_outtextxy(1, 50, "Computer won");
+                    comScore++;
+                }
+                else if (key == -INF) 
+                    glcd_outtextxy(1, 50, "Draw"); 
+                delay_ms(100);
+                isCrossTurn = gameStarter;
+                gameStarter = !gameStarter;
+                initGame(); 
+
+            }                                    
+            isCrossTurn = !isCrossTurn; 
+            moveNo++;
+            handup();  
+        }    
+        
+
+      }
+}
+
+
+bool moveForWin(int *x, int *y, bool turn) {
+    if (board[0][0] == turn && board[0][1] == turn && board[0][2] == INF) {
+        *x = 0; *y = 2;
+        return true;
+    }
+    if (board[0][0] == turn && board[0][2] == turn && board[0][1] == INF) {
+        *x = 0; *y = 1;
+        return true;
+    }   
+    if (board[0][1] == turn && board[0][2] == turn && board[0][0] == INF) {
+        *x = 0; *y = 0;
+        return true;
+    }
+        
+    if (board[1][0] == turn && board[1][1] == turn && board[1][2] == INF) {
+        *x = 1; *y = 2;
+        return true;
+    }
+    if (board[1][0] == turn && board[1][2] == turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }   
+    if (board[1][1] == turn && board[1][2] == turn && board[1][0] == INF) {
+        *x = 1; *y = 0;
+        return true;
+    }                              
+          
+    if (board[2][0] == turn && board[2][1] == turn && board[2][2] == INF) {
+        *x = 2; *y = 2;
+        return true;
+    }
+    if (board[2][0] == turn && board[2][2] == turn && board[2][1] == INF) {
+        *x = 2; *y = 1;
+        return true;
+    }   
+    if (board[2][1] == turn && board[2][2] == turn && board[2][0] == INF) {
+        *x = 2; *y = 0;
+        return true;
+    }   
+        
+    if (board[0][0] == turn && board[1][0] == turn && board[2][0] == INF) {
+        *x = 2; *y = 0;
+        return true;
+    }
+    if (board[2][0] == turn && board[1][0] == turn && board[0][0] == INF) {
+        *x = 0; *y = 0;
+        return true;
+    }   
+    if (board[0][0] == turn && board[2][0] == turn && board[1][0] == INF) {
+        *x = 1; *y = 0;
+        return true;
+    }
+        
+    if (board[0][1] == turn && board[1][1] == turn && board[2][1] == INF) {
+        *x = 2; *y = 1;
+        return true;
+    }
+    if (board[2][1] == turn && board[1][1] == turn && board[0][1] == INF) {
+        *x = 0; *y = 1;
+        return true;
+    }   
+    if (board[0][1] == turn && board[2][1] == turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }                 
+        
+    if (board[0][2] == turn && board[1][2] == turn && board[2][2] == INF) {
+        *x = 2; *y = 2;
+        return true;
+    }
+    if (board[2][2] == turn && board[1][2] == turn && board[0][2] == INF) {
+        *x = 0; *y = 2;
+        return true;
+    }   
+    if (board[0][2] == turn && board[2][2] == turn && board[1][2] == INF) {
+        *x = 1; *y = 2;
+        return true;
+    }  
+           
+        
+    if (board[0][0] == turn && board[1][1] == turn && board[2][2] == INF) {
+        *x = 2; *y = 2;
+        return true;
+    }          
+    if (board[0][0] == turn && board[2][2] == turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }         
+    if (board[2][2] == turn && board[1][1] == turn && board[0][0] == INF) {
+        *x = 0; *y = 0;
+        return true;
+    }
+        
+    if (board[2][0] == turn && board[1][1] == turn && board[0][2] == INF) {
+        *x = 0; *y = 2;
+        return true;
+    }          
+    if (board[2][0] == turn && board[0][2] == turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }         
+    if (board[0][2] == turn && board[1][1] == turn && board[2][0] == INF) {
+        *x = 2; *y = 0;
+        return true;
+    }      
+    return false;
+        
+}
+bool moveForNotToLose(int *x, int *y, bool turn) {
+    if (board[0][0] == !turn && board[0][1] == !turn && board[0][2] == INF) {
+        *x = 0; *y = 2;
+        return true;
+    }
+    if (board[0][0] == !turn && board[0][2] == !turn && board[0][1] == INF) {
+        *x = 0; *y = 1;
+        return true;
+    }   
+    if (board[0][1] == !turn && board[0][2] == !turn && board[0][0] == INF) {
+        *x = 0; *y = 0;
+        return true;
+    }
+        
+    if (board[1][0] == !turn && board[1][1] == !turn && board[1][2] == INF) {
+        *x = 1; *y = 2;
+        return true;
+    }
+    if (board[1][0] == !turn && board[1][2] == !turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }   
+    if (board[1][1] == !turn && board[1][2] == !turn && board[1][0] == INF) {
+        *x = 1; *y = 0;
+        return true;
+    }                              
+          
+    if (board[2][0] == !turn && board[2][1] == !turn && board[2][2] == INF) {
+        *x = 2; *y = 2;
+        return true;
+    }
+    if (board[2][0] == !turn && board[2][2] == !turn && board[2][1] == INF) {
+        *x = 2; *y = 1;
+        return true;
+    }   
+    if (board[2][1] == !turn && board[2][2] == !turn && board[2][0] == INF) {
+        *x = 2; *y = 0;
+        return true;
+    }   
+        
+    if (board[0][0] == !turn && board[1][0] == !turn && board[2][0] == INF) {
+        *x = 2; *y = 0;
+        return true;
+    }
+    if (board[2][0] == !turn && board[1][0] == !turn && board[0][0] == INF) {
+        *x = 0; *y = 0;
+        return true;
+    }   
+    if (board[0][0] == !turn && board[2][0] == !turn && board[1][0] == INF) {
+        *x = 1; *y = 0;
+        return true;
+    }
+        
+    if (board[0][1] == !turn && board[1][1] == !turn && board[2][1] == INF) {
+        *x = 2; *y = 1;
+        return true;
+    }
+    if (board[2][1] == !turn && board[1][1] == !turn && board[0][1] == INF) {
+        *x = 0; *y = 1;
+        return true;
+    }   
+    if (board[0][1] == !turn && board[2][1] == !turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }                 
+        
+    if (board[0][2] == !turn && board[1][2] == !turn && board[2][2] == INF) {
+        *x = 2; *y = 2;
+        return true;
+    }
+    if (board[2][2] == !turn && board[1][2] == !turn && board[0][2] == INF) {
+        *x = 0; *y = 2;
+        return true;
+    }   
+    if (board[0][2] == !turn && board[2][2] == !turn && board[1][2] == INF) {
+        *x = 1; *y = 2;
+        return true;
+    } 
+        
+    if (board[0][0] == !turn && board[1][1] == !turn && board[2][2] == INF) {
+        *x = 2; *y = 2;
+        return true;
+    }          
+    if (board[0][0] == !turn && board[2][2] == !turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }         
+    if (board[2][2] == !turn && board[1][1] == !turn && board[0][0] == INF) {
+        *x = 0; *y = 0;
+        return true;
+    }
+        
+    if (board[2][0] == !turn && board[1][1] == !turn && board[0][2] == INF) {
+        *x = 0; *y = 2;
+        return true;
+    }          
+    if (board[2][0] == !turn && board[0][2] == !turn && board[1][1] == INF) {
+        *x = 1; *y = 1;
+        return true;
+    }         
+    if (board[0][2] == !turn && board[1][1] == !turn && board[2][0] == INF) {
+        *x = 2; *y = 0;
+        return true;
+    }
+    return false;
+}
+bool randMove(int *x, int *y) {
+    int i, j;
+    for (i = 0; i < 3; i++) {
+        for (j = 0; j < 3; j++) {
+            if (board[i][j] == INF) {
+                *x = i; *y = j;
+                return true;
+            }
+        }
+    }                  
+    return false;
+}
+
+void computerToMove(char board[3][3], int *x, int *y, int moveNo, bool turn) {
+    if (moveNo == 1) {
+        *x = 2;
+        *y = 2;
+        return;
+    }     
+    
+    if (moveNo == 2) {    
+        // corner 
+        if (board[0][0] == !turn || board[2][2] == !turn
+                || board[2][0] == !turn || board[0][2] == !turn) {
+                
+                *x = 1; *y = 1;
+                return;           
+        }                       
+        
+        // mid-corner
+        if (board[0][1] == !turn) {
+            *x = 2; *y = 1;        
+            return;
+        }
+        if (board[1][0] == !turn) {
+            *x = 1; *y = 2;        
+            return;
+        }                
+        if (board[2][1] == !turn) {
+            *x = 0; *y = 1;        
+            return;
+        }
+        if (board[1][2] == !turn) {
+            *x = 1; *y = 0;        
+            return;
+        }            
+        
+        // mid
+        if (board[1][1] == !turn) {
+            *x = 0; *y = 0;
+            return;
+        }
+            
+    } 
+    
+    if (moveNo == 3) {
+        if (board[1][1] == !turn) {
+            *x = 0; *y = 0;
+            return;
+        }
+        
+        
+        if (board[0][0] == !turn) {
+            *x = 0; *y = 2;
+            return;
+        }               
+        if (board[2][0] == !turn) {
+            *x = 0; *y = 0;
+            return;
+        }              
+        if (board[0][2] == !turn) {
+            *x = 0; *y = 0;
+            return;
+        }
+        
+        if (board[1][0] == !turn) {
+            *x = 0; *y = 2;
+            return;
+        }        
+        if (board[0][1] == !turn ) {
+            *x = 0; *y = 2;
+            return;
+        }           
+        if (board[2][1] == !turn) {
+            *x = 0; *y = 2;
+            return;
+        } 
+        if (board[1][2] == !turn) {
+            *x = 1; *y = 1;
+            return;
+        }
+    }
+        
+    if (moveNo == 4) {
+         if (moveForWin(x, y, turn))
+            return;
+        if (moveForNotToLose(x, y, turn))
+            return;
+        if (randMove(x, y))
+            return;    
+         
+    }  
+   
+    if (moveNo == 5) { 
+        if (moveForWin(x, y, turn))
+            return;
+        if (moveForNotToLose(x, y, turn))
+            return;
+        if (randMove(x, y))
+            return;    
+    }     
+    
+    if (moveNo == 6) {
+        if (moveForWin(x, y, turn))
+            return;
+        if (moveForNotToLose(x, y, turn))
+            return;
+        if (randMove(x, y))
+            return;  
+    }    
+    
+    if (moveNo == 7) {
+        if (moveForWin(x, y, turn))
+            return;
+        if (moveForNotToLose(x, y, turn))
+            return;
+        if (randMove(x, y))
+            return;  
+    }    
+    
+    if (moveNo == 8) {
+        if (moveForWin(x, y, turn))
+            return;
+        if (moveForNotToLose(x, y, turn))
+            return;
+        if (randMove(x, y))
+            return;  
+    }    
+    
+    if (moveNo == 9) {
+        if (moveForWin(x, y, turn))
+            return;
+        if (moveForNotToLose(x, y, turn))
+            return;
+        if (randMove(x, y))
+            return;  
+    }
+            
+}
+
+int evaluate(char board[3][3]) {
+    if (board[0][0] + board[0][1] + board[0][2] == 3 ||
+            board[1][0] + board[1][1] + board[1][2] == 3 || 
+            board[2][0] + board[2][1] + board[2][2] == 3)
+        return 1;
+    
+    if (board[0][0] + board[1][0] + board[2][0] == 3 ||
+            board[0][1] + board[1][1] + board[2][1] == 3 || 
+            board[0][2] + board[1][2] + board[2][2] == 3)
+        return 1;
+    
+    if (board[0][0] + board[0][1] + board[0][2] == 0 ||
+            board[1][0] + board[1][1] + board[1][2] == 0 || 
+            board[2][0] + board[2][1] + board[2][2] == 0)
+        return 0;
+    
+    if (board[0][0] + board[1][0] + board[2][0] == 0 ||
+            board[0][1] + board[1][1] + board[2][1] == 0 || 
+            board[0][2] + board[1][2] + board[2][2] == 0)
+        return 0;
+        
+        
+    if (board[0][0] + board[1][1] + board[2][2] == 3 ||
+            board[2][0] + board[1][1] + board[0][2] == 3)
+            return 1;
+    
+    if (board[0][0] + board[1][1] + board[2][2] == 0 ||
+            board[2][0] + board[1][1] + board[0][2] == 0)
+            return 0; 
+            
+    if (board[0][0] + board[0][1] + board[0][2]
+            + board[1][0] + board[1][1] + board[1][2]
+            + board[2][0] + board[2][1] + board[2][2] == 5)
+                return -INF;   
+                           
+    return INF;
+}
+
+void updateBoard(int x, int y, bool isCrossTurn){
+    board[x][y] = isCrossTurn ? 1: 0;
+}
+
+void handup() {
+    int q, p;
+    while(readkey(&q, &p) != 100);
+    delay_ms(5);
+    while(readkey(&q, &p) != 100);
+}
+
+char readkey(int *x, int *y) {
+    PORTD.4 = 0;
+    PORTD.5 = 1;
+    PORTD.6 = 1;
+    PORTD.7 = 1;
+    if (PIND.0 == 0) {
+        *x = 0;
+        *y = 0;
+        return 7;         
+    }
+    if (PIND.1 == 0) {
+        *x = 1;
+        *y = 0;
+        return 4;
+    }
+    if (PIND.2 == 0) {
+        *x = 2;
+        *y = 0;
+        return 1;
+    }
+    if (PIND.3 == 0)
+        return 100;
+                     
+    PORTD.4 = 1;
+    PORTD.5 = 0;
+    PORTD.6 = 1;
+    PORTD.7 = 1;
+    if (PIND.0 == 0) {
+        *x = 0;
+        *y = 1;
+        return 8;     
+    }
+    if (PIND.1 == 0){
+        *x = 1;
+        *y = 1;
+        return 5;
+    }
+    if (PIND.2 == 0){
+        *x = 2;
+        *y = 1;
+        return 2;
+    }
+    if (PIND.3 == 0)
+        return 100;
+        
+    PORTD.4 = 1;
+    PORTD.5 = 1;
+    PORTD.6 = 0;
+    PORTD.7 = 1;
+    if (PIND.0 == 0){
+        *x = 0;
+        *y = 2;
+        return 9;
+    } 
+    if (PIND.1 == 0){
+        *x = 1;
+        *y = 2;
+        return 6;    
+    }
+    if (PIND.2 == 0){
+        *x = 2;
+        *y = 2;
+        return 3;
+    }
+    if (PIND.3 == 0)
+        return 100;    
+                
+    return 100;
+}
+
+void initGame() {
+    int i, j;    
+    for (i = 0; i < 3; i++) {
+        for(j = 0; j < 3; j++){
+            board[i][j] = INF;
+        }
+    }
+    moveNo = 0; 
+                 
+    glcd_clear();
+    printScoreBoard();
+    glcd_setlinestyle(2,GLCD_LINE_SOLID);
+    glcd_line(65, 22, 127, 22);
+    glcd_line(65, 43, 127, 43);
+    glcd_line(85, 1, 85, 63);            
+    glcd_setlinestyle(1,GLCD_LINE_SOLID);
+    glcd_line(107, 1, 107, 63);
+}
+
+
+void drawCrossOrCircle(int x, int y, bool isCross) {
+    if (board[x][y] != INF)
+        return;
+        
+    if (isCross == 1) {
+        y = 70 + 21 * y;
+        x = 5 + 21 * x;
+        glcd_line(y, x, y + 11, x + 11);
+        glcd_line(y + 11, x, y, x + 11);
+    }  
+    else {                   
+        y = 76 + 21 * y;
+        x = 11 + 21 * x;
+        glcd_circle(y, x, 6);
+    }
+}
+
+void init()
+{
+   // Variable used to store graphic display
+// controller initialization data
+GLCDINIT_t glcd_init_data;
+
+// Input/Output Ports initialization
+// Port A initialization
+// Function: Bit7=In Bit6=In Bit5=In Bit4=In Bit3=In Bit2=In Bit1=In Bit0=In 
+DDRA=(0<<DDA7) | (0<<DDA6) | (0<<DDA5) | (0<<DDA4) | (0<<DDA3) | (0<<DDA2) | (0<<DDA1) | (0<<DDA0);
+// State: Bit7=T Bit6=T Bit5=T Bit4=T Bit3=T Bit2=T Bit1=T Bit0=T 
+PORTA=(0<<PORTA7) | (0<<PORTA6) | (0<<PORTA5) | (0<<PORTA4) | (0<<PORTA3) | (0<<PORTA2) | (0<<PORTA1) | (0<<PORTA0);
+
+// Port B initialization
+// Function: Bit7=In Bit6=In Bit5=In Bit4=In Bit3=In Bit2=In Bit1=In Bit0=In 
+DDRB=(0<<DDB7) | (0<<DDB6) | (0<<DDB5) | (0<<DDB4) | (0<<DDB3) | (0<<DDB2) | (0<<DDB1) | (0<<DDB0);
+// State: Bit7=T Bit6=T Bit5=T Bit4=T Bit3=T Bit2=T Bit1=T Bit0=T 
+PORTB=(0<<PORTB7) | (0<<PORTB6) | (0<<PORTB5) | (0<<PORTB4) | (0<<PORTB3) | (0<<PORTB2) | (0<<PORTB1) | (0<<PORTB0);
+
+// Port C initialization
+// Function: Bit7=In Bit6=In Bit5=In Bit4=In Bit3=In Bit2=In Bit1=In Bit0=In 
+DDRC=(0<<DDC7) | (0<<DDC6) | (0<<DDC5) | (0<<DDC4) | (0<<DDC3) | (0<<DDC2) | (0<<DDC1) | (0<<DDC0);
+// State: Bit7=T Bit6=T Bit5=T Bit4=T Bit3=T Bit2=T Bit1=T Bit0=T 
+PORTC=(0<<PORTC7) | (0<<PORTC6) | (0<<PORTC5) | (0<<PORTC4) | (0<<PORTC3) | (0<<PORTC2) | (0<<PORTC1) | (0<<PORTC0);
+
+// Port D initialization
+// Function: Bit7=Out Bit6=Out Bit5=Out Bit4=Out Bit3=In Bit2=In Bit1=In Bit0=In 
+DDRD=(1<<DDD7) | (1<<DDD6) | (1<<DDD5) | (1<<DDD4) | (0<<DDD3) | (0<<DDD2) | (0<<DDD1) | (0<<DDD0);
+// State: Bit7=0 Bit6=0 Bit5=0 Bit4=0 Bit3=P Bit2=P Bit1=P Bit0=P 
+PORTD=(0<<PORTD7) | (0<<PORTD6) | (0<<PORTD5) | (0<<PORTD4) | (1<<PORTD3) | (1<<PORTD2) | (1<<PORTD1) | (1<<PORTD0);
+
+// Timer/Counter 0 initialization
+// Clock source: System Clock
+// Clock value: Timer 0 Stopped
+// Mode: Normal top=0xFF
+// OC0 output: Disconnected
+TCCR0=(0<<WGM00) | (0<<COM01) | (0<<COM00) | (0<<WGM01) | (0<<CS02) | (0<<CS01) | (0<<CS00);
+TCNT0=0x00;
+OCR0=0x00;
+
+// Timer/Counter 1 initialization
+// Clock source: System Clock
+// Clock value: Timer1 Stopped
+// Mode: Normal top=0xFFFF
+// OC1A output: Disconnected
+// OC1B output: Disconnected
+// Noise Canceler: Off
+// Input Capture on Falling Edge
+// Timer1 Overflow Interrupt: Off
+// Input Capture Interrupt: Off
+// Compare A Match Interrupt: Off
+// Compare B Match Interrupt: Off
+TCCR1A=(0<<COM1A1) | (0<<COM1A0) | (0<<COM1B1) | (0<<COM1B0) | (0<<WGM11) | (0<<WGM10);
+TCCR1B=(0<<ICNC1) | (0<<ICES1) | (0<<WGM13) | (0<<WGM12) | (0<<CS12) | (0<<CS11) | (0<<CS10);
+TCNT1H=0x00;
+TCNT1L=0x00;
+ICR1H=0x00;
+ICR1L=0x00;
+OCR1AH=0x00;
+OCR1AL=0x00;
+OCR1BH=0x00;
+OCR1BL=0x00;
+
+// Timer/Counter 2 initialization
+// Clock source: System Clock
+// Clock value: Timer2 Stopped
+// Mode: Normal top=0xFF
+// OC2 output: Disconnected
+ASSR=0<<AS2;
+TCCR2=(0<<PWM2) | (0<<COM21) | (0<<COM20) | (0<<CTC2) | (0<<CS22) | (0<<CS21) | (0<<CS20);
+TCNT2=0x00;
+OCR2=0x00;
+
+// Timer(s)/Counter(s) Interrupt(s) initialization
+TIMSK=(0<<OCIE2) | (0<<TOIE2) | (0<<TICIE1) | (0<<OCIE1A) | (0<<OCIE1B) | (0<<TOIE1) | (0<<OCIE0) | (0<<TOIE0);
+
+// External Interrupt(s) initialization
+// INT0: Off
+// INT1: Off
+// INT2: Off
+MCUCR=(0<<ISC11) | (0<<ISC10) | (0<<ISC01) | (0<<ISC00);
+MCUCSR=(0<<ISC2);
+
+// USART initialization
+// USART disabled
+UCSRB=(0<<RXCIE) | (0<<TXCIE) | (0<<UDRIE) | (0<<RXEN) | (0<<TXEN) | (0<<UCSZ2) | (0<<RXB8) | (0<<TXB8);
+
+// Analog Comparator initialization
+// Analog Comparator: Off
+// The Analog Comparator's positive input is
+// connected to the AIN0 pin
+// The Analog Comparator's negative input is
+// connected to the AIN1 pin
+ACSR=(1<<ACD) | (0<<ACBG) | (0<<ACO) | (0<<ACI) | (0<<ACIE) | (0<<ACIC) | (0<<ACIS1) | (0<<ACIS0);
+SFIOR=(0<<ACME);
+
+// ADC initialization
+// ADC disabled
+ADCSRA=(0<<ADEN) | (0<<ADSC) | (0<<ADATE) | (0<<ADIF) | (0<<ADIE) | (0<<ADPS2) | (0<<ADPS1) | (0<<ADPS0);
+
+// SPI initialization
+// SPI disabled
+SPCR=(0<<SPIE) | (0<<SPE) | (0<<DORD) | (0<<MSTR) | (0<<CPOL) | (0<<CPHA) | (0<<SPR1) | (0<<SPR0);
+
+// TWI initialization
+// TWI disabled
+TWCR=(0<<TWEA) | (0<<TWSTA) | (0<<TWSTO) | (0<<TWEN) | (0<<TWIE);
+
+// Graphic Display Controller initialization
+// The KS0108 connections are specified in the
+// Project|Configure|C Compiler|Libraries|Graphic Display menu:
+// DB0 - PORTC Bit 0
+// DB1 - PORTC Bit 1
+// DB2 - PORTC Bit 2
+// DB3 - PORTC Bit 3
+// DB4 - PORTC Bit 4
+// DB5 - PORTC Bit 5
+// DB6 - PORTC Bit 6
+// DB7 - PORTC Bit 7
+// E - PORTB Bit 0
+// RD /WR - PORTB Bit 1
+// RS - PORTB Bit 2
+// /RST - PORTB Bit 4
+// CS1 - PORTB Bit 3
+// CS2 - PORTB Bit 5
+
+// Specify the current font for displaying text
+glcd_init_data.font=font5x7;
+// No function is used for reading
+// image data from external memory
+glcd_init_data.readxmem=NULL;
+// No function is used for writing
+// image data to external memory
+glcd_init_data.writexmem=NULL;
+
+glcd_init(&glcd_init_data);
+
+
+}
