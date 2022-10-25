@@ -14,6 +14,11 @@ void initReport(POPULATION *p);
 void initialize(char *Ifile, POPULATION *p)
 { /* initialize everything */
 	// Reading data from input file
+  char *Ifile;
+  int  nameLength = strlen(argv[1]);
+  Ifile = (char *) calloc(nameLength + 1, sizeof(char));
+  strcpy(Ifile, argv[1]);
+  
   initData(Ifile, p); // basic data of pop size and... are given
   printf("after initData\n");
 

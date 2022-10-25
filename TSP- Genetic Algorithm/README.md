@@ -1,5 +1,6 @@
 ## Traveling Sales Person(TSP) problem solved by artificial intelligence (genetic algorithm)
 * My code was the fastest one in the class based on the TA observation and feedback
+* TCP.c is the main file to run
 #### Input format:
 1. Name if input is "infile"
 2. First line: The population size
@@ -16,3 +17,12 @@
 4. Number of generation with highest fitness so far
 5. Maximum fitness so far
 6. The final result is the chromosome with the highest fitness
+
+#### Strategies and findings
+* PMX Crossover. I also tested the ordered crossover but PMX outperformed that
+  * PMX is the best crossover for TSP problem
+* Inversion mutation: It is the best mutation for TSP problem
+* Roulette selection: It is the best selection method for TSP problem
+* I applied the above methods for the genetic algorithm in this project
+* The probability of mutation and crossover are given as input to this program and we can play with them to get the best optimization and faster runtime
+* Evaluation should be performed before roulette selection because roulette needs the updated fitness to work properly
