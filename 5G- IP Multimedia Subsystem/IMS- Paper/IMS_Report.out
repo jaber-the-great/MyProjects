@@ -1,0 +1,53 @@
+\BOOKMARK [0][-]{chapter.1}{مقدّمه}{}% 1
+\BOOKMARK [1][-]{section.1.1}{تاریخچه شبکه‌های سلولی}{chapter.1}% 2
+\BOOKMARK [1][-]{section.1.2}{دلایل پیدایش IMS}{chapter.1}% 3
+\BOOKMARK [1][-]{section.1.3}{کارهای انجام‌شده}{chapter.1}% 4
+\BOOKMARK [0][-]{chapter.2}{معماری IMS}{}% 5
+\BOOKMARK [1][-]{section.2.1}{سطح کنترلی}{chapter.2}% 6
+\BOOKMARK [1][-]{section.2.2}{سطح حامل}{chapter.2}% 7
+\BOOKMARK [1][-]{section.2.3}{سطح اپلیکیشن}{chapter.2}% 8
+\BOOKMARK [0][-]{chapter.3}{مزایا و کاربردهای IMS}{}% 9
+\BOOKMARK [1][-]{section.3.1}{کاهش هزینه‌ها، افزایش درآمد و رفع وابستگی}{chapter.3}% 10
+\BOOKMARK [2][-]{subsection.3.1.1}{جایگزین سوئیچ‌های مداری}{section.3.1}% 11
+\BOOKMARK [2][-]{subsection.3.1.2}{آسان کردن ارائه‌ی سرویس‌های نوظهور}{section.3.1}% 12
+\BOOKMARK [1][-]{section.3.2}{ورود شرکت‌های شخص ثالث به بازار مخابرات}{chapter.3}% 13
+\BOOKMARK [1][-]{section.3.3}{ عدم وابستگی به شبکه‌ی دسترسی }{chapter.3}% 14
+\BOOKMARK [1][-]{section.3.4}{کاربردهای نوظهور}{chapter.3}% 15
+\BOOKMARK [0][-]{chapter.4}{پروژه‌ی clearwater}{}% 16
+\BOOKMARK [1][-]{section.4.1}{مقدّمه}{chapter.4}% 17
+\BOOKMARK [1][-]{section.4.2}{معماری clearwater}{chapter.4}% 18
+\BOOKMARK [1][-]{section.4.3}{قابلیت های clearwater}{chapter.4}% 19
+\BOOKMARK [0][-]{chapter.5}{ روش‌های پیاده‌سازی}{}% 20
+\BOOKMARK [1][-]{section.5.1}{معرّفی روش‌های پیاده‌سازی}{chapter.5}% 21
+\BOOKMARK [1][-]{section.5.2}{پیاده‌سازی یکپارچه در مقیاس کوچک }{chapter.5}% 22
+\BOOKMARK [2][-]{subsection.5.2.1}{معرّفی}{section.5.2}% 23
+\BOOKMARK [2][-]{subsection.5.2.2}{انواع روش‌های یکپارچه}{section.5.2}% 24
+\BOOKMARK [2][-]{subsection.5.2.3}{قابلیت‌ها و محدودیّت‌ها}{section.5.2}% 25
+\BOOKMARK [1][-]{section.5.3}{پیاده‌سازی در مقیاس بزرگ و پیاده سازی با کد منبع}{chapter.5}% 26
+\BOOKMARK [0][-]{chapter.6}{پیاده‌سازی در مقیاس کوچک بر روی سکوی مجازی‌سازی}{}% 27
+\BOOKMARK [1][-]{section.6.1}{نصب}{chapter.6}% 28
+\BOOKMARK [1][-]{section.6.2}{راه‌اندازی ماشین مجازی و ایجاد شماره تلفن}{chapter.6}% 29
+\BOOKMARK [1][-]{section.6.3}{پیکربندی دستگاه کاربران}{chapter.6}% 30
+\BOOKMARK [1][-]{section.6.4}{برقراری تماس}{chapter.6}% 31
+\BOOKMARK [1][-]{section.6.5}{آزمایش clearwater}{chapter.6}% 32
+\BOOKMARK [0][-]{chapter.7}{مقایسه‌کیفیت سرویس در IMS و VOIP}{}% 33
+\BOOKMARK [1][-]{section.7.1}{نیاز به کیفیّت سرویس}{chapter.7}% 34
+\BOOKMARK [1][-]{section.7.2}{مقایسه‌ی کیفیت سرویس در شبکه اینترنت}{chapter.7}% 35
+\BOOKMARK [2][-]{subsection.7.2.1}{مقایسه‌ی سیگنالینگ VOIP و IMS در شبکه‌ی اینترنت}{section.7.2}% 36
+\BOOKMARK [1][-]{section.7.3}{مقایسه‌ی کیفیّت سرویس در شبکه سلولی}{chapter.7}% 37
+\BOOKMARK [0][-]{chapter.8}{اتّصال IMS به شبکه‌ی 4G}{}% 38
+\BOOKMARK [1][-]{section.8.1}{پیاده‌سازی نسل چهارم ارتباطات}{chapter.8}% 39
+\BOOKMARK [1][-]{section.8.2}{اتّصال IMS به هسته‌ی شبکه‌ی 4G}{chapter.8}% 40
+\BOOKMARK [1][-]{section.8.3}{برقراری تماس تلفنی بین کاربران 4G توسّط IMS}{chapter.8}% 41
+\BOOKMARK [0][-]{chapter.9}{نتیجه‌گیری}{}% 42
+\BOOKMARK [0][-]{appendix.Alph1}{مسائل و مشکلات Virtualbox}{}% 43
+\BOOKMARK [1][-]{section.Alph1.1}{نصب}{appendix.Alph1}% 44
+\BOOKMARK [1][-]{section.Alph1.2}{خطای اجرا کردن ماشین مجازی}{appendix.Alph1}% 45
+\BOOKMARK [0][-]{appendix.Alph2}{مسائل و مشکلات آزمایش clearwater}{}% 46
+\BOOKMARK [0][-]{appendix.Alph3}{اتّصال به تلفن ثابت}{}% 47
+\BOOKMARK [1][-]{section.Alph3.1}{روش‌های استفاده از SIP trunk}{appendix.Alph3}% 48
+\BOOKMARK [1][-]{section.Alph3.2}{اتّصال SIP trunk به IMS}{appendix.Alph3}% 49
+\BOOKMARK [2][-]{subsection.Alph3.2.1}{نصب و پیکربندی IBCF}{section.Alph3.2}% 50
+\BOOKMARK [2][-]{subsection.Alph3.2.2}{پیکربندی ENUM}{section.Alph3.2}% 51
+\BOOKMARK [2][-]{subsection.Alph3.2.3}{پیکربندی BGCF}{section.Alph3.2}% 52
+\BOOKMARK [0][-]{appendix*.64}{مراجع}{}% 53

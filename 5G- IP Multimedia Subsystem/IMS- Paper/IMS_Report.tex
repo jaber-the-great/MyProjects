@@ -1,0 +1,70 @@
+\documentclass[a4paper,13pt]{report}
+\usepackage{xcolor}
+\usepackage{graphicx} % inserting images
+\usepackage[hidelinks]{hyperref} % PDF links 
+\usepackage{setspace} % for switching between double/single space in document
+\usepackage{fancyhdr} % package for changing Headings style
+% setting the margins of page
+\usepackage{appendix}
+
+\usepackage[top=3cm,right=3cm,bottom=2.5cm,left=2.5cm]{geometry}           \usepackage{float} %i added for insterting pic between 2 %pargraph     
+\usepackage{xepersian}
+
+
+
+% tell tex engine address of folder containing your pictures
+\graphicspath{{images/}}
+
+% commands to print the page number in header
+\pagestyle{fancy}
+\cfoot{}
+\lhead{\thepage}
+
+% commands related to XePersian package
+\settextfont[Scale =1]{XB Zar}
+\setlatintextfont[Scale=1]{Times New Roman}
+\setdigitfont{Times New Roman}
+
+% -------------------------------------
+
+
+\input{jeld_info}
+
+\begin{document}
+\include{cover_fa}
+\include{abstract_fa}
+
+\pagenumbering{harfi}
+\tableofcontents
+\listoffigures
+%\listoftables
+
+% insert each of your chapters with a \inlcude{filename} command as below
+\doublespacing
+\include{chap1}
+\include{chap2}
+\include{chap3}
+\include{chap4}
+\include{chap5}
+\include{chap6}
+\include{chap7}
+\include{chap8}
+\include{chap9}
+% -----------------------------------------------------------------------
+
+% If do not have appendix then comment following 3 lines
+%\appendix
+\begin{appendices}
+\include{peyvast1}
+\include{peyvast2}
+\include{peyvast3}
+\end{appendices}
+% -------------------------------------------------------
+
+\singlespacing
+\include{references}
+%\include{abstract_en}
+%\include{cover_en}
+
+
+\end{document}
