@@ -1,0 +1,23 @@
+classdef parent
+   properties (Constant)
+      first;
+      sec = 4;
+   end
+   properties
+      third = 10.0;
+      fourth;
+   end
+
+
+   methods
+      function obj = parent(third, fourth)
+         obj.third = third;
+         obj.fourth = fourth;
+      end
+      function obj = rangeFunc(x)
+         if len(x) < 10
+           print("Not in the range")
+           
+      end
+   end
+end
