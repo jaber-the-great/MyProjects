@@ -1,0 +1,4 @@
+- [ ] Store the blockchain in each client
+- [ ] Server (coordinator) should not have access to the blockchain -> The clients can separately print the block chain
+- [ ] Put aborted requests in a queue 
+- [ ] 
