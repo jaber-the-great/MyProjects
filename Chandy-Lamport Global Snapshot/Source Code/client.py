@@ -21,6 +21,8 @@ class client:
         self.LocalState = []
         self.seqNumber = 0 # The sequence number for initiating the snapshot
         self.snapShotLog = {}
+        self.listeningTo = {}
+
 
 
     def init_connections(self):
@@ -35,7 +37,29 @@ class client:
         self.incoming = {}
         for item in conf:
             self.incoming[item] = addrs[item]
-        print(self.incoming)
+        print(self.incoming.keys())
+
+    def RecordMessages(self, msg):
+        for snapID in self.listeningTo:
+            for channel in self.listeningTo[snapID]:
+                if self.listeningTo[snapID][channel] == True:
+                    self.snapShotLog[snapID][channel] += msg
+    def AllMarkersReceived(self, snapshotID):
+        for channel in self.listeningTo[snapshotID]:
+            if channel == True:
+                return False
+        return True
+
+    def TerminateSnapshot(self, snapshotID):
+        self.listeningTo.pop(snapshotID,"KeyNotFound")
+        # The first character is the name of initiator, in case of name.len > 1, use regex to separate
+        # Seq number and client name
+        initiator = snapshotID[0]
+        initiatorAddress = addrs[initiator]
+        data = self.name + ","  + "SNAPSHOT" + "," + snapshotID + "," + str(self.snapShotLog[snapshotID])
+        self.soc.sendto(data.encode(), initiatorAddress)
+        # Finalize the address
+
 
 
     def recv(self):
@@ -43,26 +67,58 @@ class client:
             data , address = self.soc.recvfrom(1024)
             data = data.split(',')
             if data[1] == "token":
-                # TODO: record the state of getting token
                 self.hasToken = True
+                # TODO: correct the format
+                self.RecordMessages(data + "Recieved")
+
             if data[1] == "MARKER":
                 # Marker message format: sender + MARKER + initiatorID + initiator SeqN
                 snapshotID = data[2] + data[3]
                 sender = data[0]
                 if snapshotID not in self.snapShotLog:
-                    # Record the channel as empty
-                    # Put the channel in the list
-                    # Start sending MARKER on the outgoing
-                    self.snapShotLog[snapshotID]= [sender]
-                else:
-                    if sender in self.snapShotLog[snapshotID]:
-                        # TODO: Stop recording that channel and save the state
-                        pass
+                    # Structure: Snapshot log is a dictionary of snapshot IDs.
+                    # Each snapshot ID has a dictionary for every incoming channel
+                    # For every incoming channel of each snapshot, there is a list of messages
+                    # Record the channel as empty --> set the value as empty
+                    self.snapShotLog[snapshotID]= {sender: ["Empty"]}
+                    # Record local state
+                    if self.hasToken:
+                        currentState = "Has Token"
                     else:
-                        # TODO: Record the state of that channel
-                        self.snapShotLog[snapshotID] += [sender]
+                        currentState = "NO Token"
+                    self.snapShotLog[snapshotID].update({self.name:currentState})
 
-            # Data is state
+                    # Record the MARKER message if there is any ongoing snapshot:
+                    # By searching through the web, I realized that we should not record snapshot messages in the state
+                    # https://decomposition.al/blog/2019/04/26/an-example-run-of-the-chandy-lamport-snapshot-algorithm/
+                    #self.RecordMessages(data)
+
+                    # Send marker to all outgoing channels
+                    self.broadcast(' '.join(data[1:]))
+                    # Listening to all OTHER incoming channels for this snapshot (except C, which sent the first marker)
+                    # The format is: ListeningTo is a dictionary of snapshotIDs. Each record is a dictionary of all
+                    # incoming channels for that snapshotID, set true or false depending on the situation
+                    self.listeningTo[snapshotID] = {}
+                    for key in self.outgoing:
+                        self.listeningTo[snapshotID].update({key:True})
+                    self.listeningTo[snapshotID][sender] = False
+
+                else:
+                    # TODO: maybe no if else statement, we already have the snapshot and on reciept of the marker,
+                    # we stop recording
+                    if sender in self.snapShotLog[snapshotID]:
+                        # Stop recording that channel
+                        self.listeningTo[snapshotID][sender] = False
+                        # TODO: record the message on the same channel on other active snapshots
+                        # TODO: Check the end of snapshot --> All other has ended?
+                        if self.AllMarkersReceived(snapshotID):
+                            self.TerminateSnapshot(snapshotID)
+
+                    else:
+
+                        # TODO: Think more about this state
+                        self.snapShotLog[snapshotID] = {sender: []}
+
 
 
     def broadcast(self, msg):
@@ -70,7 +126,11 @@ class client:
         data = str(self.name) + "," + msg
         for client in self.outgoing.values():
             self.soc.sendto(data.encode(),client)
-
+    # def SentToClient(self, msg, clientName):
+    #     # TODO: use snapshot in the strcture of message
+    #     data = str(self.name) + "," + msg
+    #     client = addrs[clientName]
+    #     self.soc.sendto(data.encode(),client)
     def initiate_snapshopt(self):
         '''
         Record the local state
