@@ -23,7 +23,6 @@ class client:
         self.seqNumber = 0 # The sequence number for initiating the snapshot
         self.snapShotLog = {}
         self.listeningTo = {}
-        self.RunningSnapshot = False
         self.GlobalState = []
 
 
@@ -41,11 +40,11 @@ class client:
         for item in conf:
             self.incoming[item] = addrs[item]
 
-    def RecordMessages(self, msg):
+    def RecordMessages(self, senderChannel,msg):
+
         for snapID in self.listeningTo:
-            for channel in self.listeningTo[snapID]:
-                if self.listeningTo[snapID][channel] == True:
-                    self.snapShotLog[snapID][channel] += [msg]
+                if self.listeningTo[snapID][senderChannel] == True:
+                    self.snapShotLog[snapID][senderChannel] += [msg]
     def AllMarkersReceived(self, snapshotID):
         for channel in self.listeningTo[snapshotID]:
             if self.listeningTo[snapshotID][channel] == True:
@@ -54,7 +53,7 @@ class client:
         return True
 
     def TerminateSnapshot(self, snapshotID):
-        print("entered terminate snapshot")
+        print(f"Entered terminate snapshot for {snapshotID}")
         self.listeningTo.pop(snapshotID,"KeyNotFound")
         # The first character is the name of initiator, in case of name.len > 1, use regex to separate
         # Seq number and client name
@@ -87,6 +86,7 @@ class client:
             self.snapShotLog[snapshotID].update({key: []})
         # Making the state of channel C as false and recording that channel as empty
         self.listeningTo[snapshotID][sender] = False
+        # Instead of setting it as "Empty", you can just leave it as empty. I did this way for demo purposes
         self.snapShotLog[snapshotID][sender] = ["Empty"]
         print("Listening to the following channels")
         print(self.listeningTo)
@@ -98,11 +98,10 @@ class client:
             if data[1] == "token":
                 print(f"Token received from client: {data[0]}")
                 self.hasToken = True
-                # TODO: correct the format
-                self.RecordMessages(','.join(data) + "Recieved")
+                self.RecordMessages(data[0], f"Token Received from {data[0]}")
 
             if data[1] == "MARKER":
-                sleep(3)
+                sleep(7)
                 # Marker message format: sender + MARKER + initiatorID + initiator SeqN
                 snapshotID = data[2]
                 sender = data[0]
@@ -121,8 +120,9 @@ class client:
                     #self.RecordMessages(data)
 
                     # Send marker to all outgoing channels
-                    self.broadcast(','.join(data[1:]))
                     print(f"Broadcasting the snapshot {snapshotID} to all outgoing channels")
+                    self.broadcast(','.join(data[1:]))
+
                     self.ListenIncomingChannels(snapshotID,sender)
 
                 else:
@@ -137,30 +137,20 @@ class client:
                 self.GlobalState.append(data)
                 # print(f"The following snapshot for {snapshotID} received from {sender}:")
                 # print(data)
-                if len(self.GlobalState) == NumberOfClients -1:
-                    # TODO: Don't forget to add state of initiator to global state
-                    self.RunningSnapshot = False
-                    print("End of the Global snapshot")
+                if len(self.GlobalState) == NumberOfClients:
+                    print("End of the Global snapshot:")
                     print(self.GlobalState)
-
-
-
-
-
-
-
+                    print("######################################################")
+                    self.GlobalState = []
 
 
     def broadcast(self, msg):
         ''' Brodcasting message to all outgoing links'''
         data = str(self.name) + "," + msg
-        for client in self.outgoing.values():
-            self.soc.sendto(data.encode(),client)
-    # def SentToClient(self, msg, clientName):
-    #     # TODO: use snapshot in the strcture of message
-    #     data = str(self.name) + "," + msg
-    #     client = addrs[clientName]
-    #     self.soc.sendto(data.encode(),client)
+        for client in self.outgoing:
+            print(data + " sent to client: " + client )
+            self.soc.sendto(data.encode(),self.outgoing[client])
+
     def initiate_snapshopt(self):
         '''
         Record the local state
@@ -172,24 +162,28 @@ class client:
         self.seqNumber +=1
         ID = self.name + str(self.seqNumber)
         self.SaveLocalState(ID)
-        self.RunningSnapshot = True
+
         message = "MARKER," + ID
         self.broadcast(message)
-        print(f"MARKER for snapshot {ID} broadcasted to outgoing links" )
+        print(f"MARKER for snapshot {ID} broadcasted to outgoing links." )
         self.listeningTo[ID] = {}
         for key in self.incoming:
             self.listeningTo[ID].update({key: True})
             self.snapShotLog[ID].update({key: []})
-        print("Listening to the following channels")
+        print("Listening to the following channels:")
         print(self.listeningTo)
 
 
 
 
     def sendToken(self):
-        # This function is called through thread every 1 second
-        # If it does not have the token, just return from the function
-        # If the client has a token, send it to the next one
+        '''
+        This function is called through thread every 1 second
+        If it does not have the token, just return from the function
+        If the client has a token, send it to the next one
+        :return: Nothing, calls itself in a thread again
+        '''
+
         if self.hasToken:
             # Nullifying the token before sending it
             self.hasToken = False
@@ -222,14 +216,13 @@ class client:
         while True:
             event, values = window.read()
             if event == gui.WIN_CLOSED:
-                # TODO: Maybe terminate the program
                 self.continueThread = False
                 print("Terminating the program ...")
                 sys.exit("Good bye!")
             if event == 'Take Snapshot':
-                self.initiate_snapshopt()
-                # TODO: finish the snapshot and record it
                 print("Snapshot initiated")
+                self.initiate_snapshopt()
+
             if event == 'Generate New Token':
                 # create new token or simple set the token value to true
                 self.hasToken = True
@@ -245,10 +238,16 @@ class client:
 
 if __name__ == "__main__":
 
+    if len(sys.argv) < 2 or sys.argv[1] not in "ABCDE":
+        print("Invalid client name for this project. Valid clients are: A, B, C, D, E")
+        sys.exit(1)
     cl = client(sys.argv[1])
     cl.init_connections()
     cl.sendToken()
     _thread.start_new_thread(cl.recv, ())
-
     cl.startGUI()
 
+# TODO: Write an starter for the code
+
+# TODO (for demo): recording no snapshot message in the channel
+# TCP or UDP is good enough --> UDP good enough on local machine
