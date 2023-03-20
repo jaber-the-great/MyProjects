@@ -21,7 +21,7 @@ class client:
         self.name = name
         self.event_number = 0
         self.soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # TODO: change it to 5 and 10
+        # We can have a shorter timeout but due to larger intentional delay, I considered this value
         self.soc.settimeout(random.uniform(5,10))
         self.soc.bind(addrs[name])
         self.failedLinksList = []
@@ -34,36 +34,22 @@ class client:
         self.currentLeader = None
         self.votedFor = None
         self.log = [[0,0,None]]
-        # self.log = open(self.name + ".txt", 'a')
-        self.lastLogIndex = 0 # TODO: think about it
-        self.lastLogTerm = 0 # TODO: think about it
         self.state= []
-        # self.state = self.name + "_state.txt"
         self.listOfKeys = readPublicKeysFromFile()
         self.votesReceived = 0
 
-    def update_saved_file(self, filename, recordType, newValue):
-        '''
-        Supporting persistent disk storage of Raft's state
-        :param filename:
-        :param recordType:
-        :param newValue:
-        :return:
-        '''
-        file = open(filename,'rw')
-        prevState = file.readlines()
-        if recordType == 'currentTerm':
-            pass
-        elif recordType == 'votedFor':
-            pass
+
     def update_current_term(self, term):
         # Do I need to save it in state?
         self.currentTerm = term
+        self.saveStateOnDisk()
     def update_voted_for(self, client):
         # DO I need to save it in state?
         self.votedFor = client
+        self.saveStateOnDisk()
 
     def send_heartbeat(self):
+        # Can use AppendEnryRPC with empty RPC for this purpose too
         while True:
             sleep(1)
             if self.role == 'leader':
@@ -73,17 +59,14 @@ class client:
 
     def start_election(self):
 
-        # self.update_current_term(self.name)
-        self.currentTerm +=1
+        self.update_current_term(self.currentTerm +1)
         self.role = "candidate"
         self.votesReceived = 1
-        self.votedFor = self.name
-        # TODO: what about election timeout?
-        self.reset_election_timeout()
+        self.update_voted_for(self.name)
+
         print(f"Becoming candidate for term: {self.currentTerm}" )
         last_log = self.getLastLog()
-        print("The last log is ")
-        print(last_log)
+        print(f"The last log is: {last_log}")
         lastIndex = last_log[0]
         lastTerm = last_log[1]
         # RequestVoteRPC format: candidateID, term, lastLogIndex, lastLogTerm
@@ -92,9 +75,6 @@ class client:
         msg = ','.join(msg)
         self.broadcast(msg)
 
-
-    def reset_election_timeout(self):
-        pass
 
     def getLastLog(self):
         # Index, term, command
@@ -153,7 +133,28 @@ class client:
             return None
 
 
+    def saveStateOnDisk(self):
+        file = open(self.name + "_state.txt",'w')
+        file.write("current term," + str(self.currentTerm) + '\n')
+        file.write("voted for," + self.votedFor + '\n')
+        file.close()
 
+    def appendToLogOnDisk(self, data):
+        file = open("log.txt", 'a')
+        file.write(data)
+        file.close()
+
+    def readLogFromFile(self):
+        file = open("log.txt", 'r')
+        data = file.readlines()
+        data.reverse()
+        self.log = data
+    def readStateFromFile(self):
+        file = open(self.name + '_state.txt','r')
+        value = file.readline().split(',')
+        self.currentTerm = int(value[1])
+        value = file.readline().split(',')
+        self.votedFor = value[1]
     def recv(self):
         # TODO: If follower, respond to the rpcs
         # message format: sender, type, other values
@@ -200,17 +201,17 @@ class client:
                     #TODO: store the data
                 if messageType == "AppendEntries":
                     if self.role == "candidate":
-                        # TODO: all the step down processes
                         self.role = 'follower'
                     self.handleCMD(data[4])
-                    # TODO: send response to the leader
+                    # TODO: sent response to the leader
 
 
 
-                if messageType == "put" or messageType == "get":
+                if messageType == "put" or messageType == "get" or messageType == "newDict":
                     if self.role == 'leader':
                         cmd = ','.join(data[1:])
                         self.Append_entry(cmd)
+
 
                 if messageType == "step":
                     if self.role != "follower":
@@ -231,10 +232,11 @@ class client:
             theKey = enc(pri,self.listOfKeys[client])
             dictPirvateKeys[client] = theKey
         print(dictPirvateKeys)
-
-        # TODO: create dictionary log: dic_id, clientIDS, dic pub key, all versions of dic private key
-        # TODO: check commited by raft
-        pass
+        command = ['newDict', ID, ,str(pub)]
+        for item in dictPirvateKeys:
+            command.append(str(dictPirvateKeys[item]))
+        command = ','.join(command)
+        self.send_message(command, self.currentLeader)
 
     def putKeyValueDict(self,dictID, key, value):
         # TODO: check access to the dictionary first
@@ -243,6 +245,7 @@ class client:
         command = ["put", dictID,key, value]
         command = ','.join(command)
         self.send_message(command,self.currentLeader)
+
     def getValueDict(self, dictID, key):
         command = ["get", dictID, key]
         command = ','.join(command)
@@ -288,7 +291,9 @@ class client:
 
             if event == 'Create':
                 # The client_ids are in inputs[0]
-                client_ids = inputs[0].split()
+
+                client_ids = inputs[0]
+                client_ids.upper()
                 print(f"Node {self.name} creates dictionary involving {client_ids}")
                 self.createDictionary(self.name, client_ids)
 
@@ -338,12 +343,13 @@ class client:
         window.close()
 
     def printDict(self, dictID):
-        # TODO: print client id for all dictionary members and content of dictionary with dictionary id
-        pass
+        # print client id for all dictionary members and content of dictionary with dictionary id
+        print(dictID)
+        print(self.dictionaries[dictID])
 
     def printAll(self):
-        # TODO: print dictionary ids for all dict that the client is a member of
-        pass
+        for item in self.dictionaries:
+            print(item)
 
     def failLink(self, dest):
         # Adds the destination to the list of failed links
@@ -354,14 +360,14 @@ class client:
         self.failedLinksList.remove(dest)
 
     def failProcess(self):
-        pass
+        print("Failing current process")
 
-    def sendToken(self):
+    def crashRecover(self):
+        self.readLogFromFile()
+        self.readStateFromFile()
+        self.role = 'follower'
+        self.currentLeader = None
 
-        # Start this thread again after one second
-        if self.continueThread:
-            t = threading.Timer(1, self.sendToken)
-            t.start()
 
     def broadcast(self, msg):
         data = str(self.name) + "," + msg
@@ -389,9 +395,8 @@ class client:
 
 if __name__ == "__main__":
 
-    # if len(sys.argv) < 2 or sys.argv[1] not in "ABCDE":
-    #     print("Invalid client name for this project. Valid clients are: A, B, C, D, E")
-    #     sys.exit(1)
+    if len(sys.argv) < 2 or sys.argv[1] not in "ABCDE":
+        print("Invalid client name for this project. Valid clients are: A, B, C, D, E")
+        sys.exit(1)
     cl = client(sys.argv[1])
     cl.starter()
-    pass
