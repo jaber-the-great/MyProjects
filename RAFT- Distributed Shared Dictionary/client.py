@@ -9,43 +9,37 @@ import rsa
 import _thread
 from random import randint
 from encryption import *
+from collections import deque
 
 addrs = {"A": ("127.0.0.1", 11111), "B": ("127.0.0.1", 22222), "C": ("127.0.0.1", 33333), "D": ("127.0.0.1", 44444),
          "E": ("127.0.0.1", 55555)}
 NumberOfClients = 5
-
+clientsList = "ABCDE"
 
 class client:
     def __init__(self, name):
         self.name = name
         self.event_number = 0
-        # For lamport snapshot algorithm, we need FIFO channel with reliable
-        # transmission which is provided by TCP. For this experimental purposes,
-        # I used UDP to see when all the processes are in the same machine, is UDP
-        # good enough for lamport snapshot or not. It worked well !!!
         self.soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # TODO: change it to 5 and 10
+        self.soc.settimeout(random.uniform(5,10))
         self.soc.bind(addrs[name])
-        self.incoming = {}
-        self.outgoing = {}
-        self.hasToken = False
-        self.tokenLossProb = 0.0
+        self.failedLinksList = []
         self.continueThread = True
         self.LocalState = []
-        self.seqNumber = 0  # The sequence number for initiating the snapshot
-        self.snapShotLog = {}
-        self.listeningTo = {}
-        self.GlobalState = []
-
+        self.seqNumber = 0  # The sequence number for dictionary ID generation
+        self.dictionaries = {} # TODO: or change it to a list
         self.role = "follower"
         self.currentTerm = 0
         self.currentLeader = None
         self.votedFor = None
-        self.log = open(self.name + ".txt", 'a')
-        self.state = self.name + "_state.txt"
-        self.publicKey , self.privateKey = rsa.newkeys(2048)
-
+        self.log = [[0,0,None]]
+        # self.log = open(self.name + ".txt", 'a')
+        self.lastLogIndex = 0 # TODO: think about it
+        self.lastLogTerm = 0 # TODO: think about it
+        self.state= []
+        # self.state = self.name + "_state.txt"
         self.listOfKeys = readPublicKeysFromFile()
-        self.fail_clients = []
         self.votesReceived = 0
 
     def update_saved_file(self, filename, recordType, newValue):
@@ -63,39 +57,181 @@ class client:
         elif recordType == 'votedFor':
             pass
     def update_current_term(self, term):
+        # Do I need to save it in state?
         self.currentTerm = term
-
     def update_voted_for(self, client):
+        # DO I need to save it in state?
         self.votedFor = client
 
     def send_heartbeat(self):
         while True:
+            sleep(1)
             if self.role == 'leader':
-                self.broadcast_to_all(f'heartbeat {self.name} {self.currentTerm}'.encode())
+                msg = ["heartbeat" , str(self.currentTerm)]
+                msg = ','.join(msg)
+                self.broadcast(msg)
+
     def start_election(self):
-        self.update_current_term(self.name)
+
+        # self.update_current_term(self.name)
+        self.currentTerm +=1
         self.role = "candidate"
         self.votesReceived = 1
+        self.votedFor = self.name
+        # TODO: what about election timeout?
+        self.reset_election_timeout()
+        print(f"Becoming candidate for term: {self.currentTerm}" )
+        last_log = self.getLastLog()
+        print("The last log is ")
+        print(last_log)
+        lastIndex = last_log[0]
+        lastTerm = last_log[1]
+        # RequestVoteRPC format: candidateID, term, lastLogIndex, lastLogTerm
+        msg = ["RequestVoteRPC" , str(self.currentTerm), str(lastIndex),
+               str(lastTerm)]
+        msg = ','.join(msg)
+        self.broadcast(msg)
+
+
+    def reset_election_timeout(self):
+        pass
+
+    def getLastLog(self):
+        # Index, term, command
+        last = self.log[0]
+        return last
+    def vote_or_not(self, vote_request):
+        # vote_request: candidate, type, term, lastLogindex, lastlogTerm
+        # Grand vote and reset election timeout if: (VotedFor is null or CandidateID) AND
+        # candidateLog >= local log,
+        candidate = vote_request[0]
+        term = int(vote_request[2])
+        lastIndexCandidate = int(vote_request[3])
+        lastTermCandidate = int(vote_request[4])
+        # TODO: Get the last term and index from log file
+        last = self.getLastLog()
+        lastLogIndex = int(last[0])
+        lastLogTerm = int(last[1])
+        Log_Complete = False
+        if self.votedFor == None:
+           Log_Complete = True
+        if lastTermCandidate > lastLogTerm or (lastTermCandidate == lastLogTerm and lastIndexCandidate >= lastLogIndex):
+            Log_Complete = True
+        NewerTerm = False
+        # TODO: is this if correct and based on protocl?
+        if term > self.currentTerm:
+            NewerTerm = True
+        elif term == self.currentTerm:
+            if self.votedFor == None or self.votedFor == candidate:
+                NewerTerm = True
+        if Log_Complete and NewerTerm:
+            self.currentTerm = term
+            self.role = 'follower'
+            self.votedFor = candidate
+            self.send_message('vote,' + str(self.currentTerm), candidate)
+    def Append_entry(self, command):
+        prevEntry = self.getLastLog()
+        term = self.currentTerm
+        index = prevEntry[0] + 1
+        # message format: AppendEntries + current term, current index, command(put get etc) , prev<index, term#>
+        msg = ["AppendEntries", str(term),str(index), command , str(prevEntry[0]), str(prevEntry[1])]
+        # Maybe just to the ones with access to dictionary
+        self.broadcast(msg)
+
+    def handleCMD(self, command):
+        command = command.split(',')
+        type = command[0]
+        dictID = command[1]
+        key = command[2]
+        if dictID not in self.dictionaries:
+            return None
+        if type == "get":
+            value = self.dictionaries[dictID][key]
+            return value
+        if type == "put":
+            self.dictionaries[dictID][key] = command[3]
+            return None
 
 
 
     def recv(self):
+        # TODO: If follower, respond to the rpcs
+        # message format: sender, type, other values
+        # print(f"Started to listen at node: {self.name}")
+        try:
+            while True:
+                data, address = self.soc.recvfrom(4096)
+                data = data.decode().split(',')
+                sender = data[0]
+                if sender in self.failedLinksList:
+                    continue
 
-        while True:
-            # Sleep on receipt of every message for demo purposes
-            sleep(3)
-            # Read the buffer and separate the address from data payload
-            data, address = self.soc.recvfrom(1024)
-            data = data.decode().split(',')
-            print(data)
-            if data[1] == "token":
+                messageType = data[1]
+                if messageType != "heartbeat":
+                    print(data)
+                if messageType == "heartbeat":
+                    self.role = "follower"
+                    self.currentLeader = sender
+                    term = int(data[2])
+                    if self.currentTerm > term:
+                        # ask to step down
+                        msg = ["step" , str(self.currentTerm),str(self.currentLeader)]
+                        msg = ','.join(msg)
+                        self.send_message(msg,self.currentLeader)
+                    self.currentTerm = max(term, self.currentTerm)
+                if messageType == "RequestVoteRPC":
+                    term = int(data[2])
+                    if int(term > self.currentTerm):
+                        if self.role == "leader" or self.role == "candidate":
+                            self.role = "follower"
+                            # TODO: rest of the step down
+                    self.vote_or_not(data)
+                if messageType == "vote":
+                    self.votesReceived +=1
+                    # Change condition for partitioning and failures
+                    if self.role == "candidate" and self.votesReceived > 2:
+                        self.role = 'leader'
+                        self.currentLeader = self.name
+                        print(f"This node ({self.name}) changed the role to leader")
+                        #TODO: change the timeout setting (no leader election)
+                        self.soc.settimeout(None)
+                if messageType == "data":
+                    pass
+                    #TODO: store the data
+                if messageType == "AppendEntries":
+                    if self.role == "candidate":
+                        # TODO: all the step down processes
+                        self.role = 'follower'
+                    self.handleCMD(data[4])
+                    # TODO: send response to the leader
 
-                print(f"Token received from client: {data[0]}")
-                # self.RecordMessages(sender, ','.join(data[1:]))
+
+
+                if messageType == "put" or messageType == "get":
+                    if self.role == 'leader':
+                        cmd = ','.join(data[1:])
+                        self.Append_entry(cmd)
+
+                if messageType == "step":
+                    if self.role != "follower":
+                        self.role = "follower"
+                        self.currentTerm = int(data[2])
+                        self. currentLeader = data[3]
+        except socket.timeout:
+            print("Timeout happened here")
+            _thread.start_new_thread(self.recv, ())
+            self.start_election()
 
 
     def createDictionary(self, generator, members):
-        # TODO: create dict ID
+        ID = self.createUniqueDictID()
+        pub , pri = generateKeyForDictionary()
+        dictPirvateKeys = {}
+        for client in members:
+            theKey = enc(pri,self.listOfKeys[client])
+            dictPirvateKeys[client] = theKey
+        print(dictPirvateKeys)
+
         # TODO: create dictionary log: dic_id, clientIDS, dic pub key, all versions of dic private key
         # TODO: check commited by raft
         pass
@@ -104,70 +240,22 @@ class client:
         # TODO: check access to the dictionary first
         # TODO: The client should encrypt an operation with the public key of the dictionary that the operation is for
         # TODO: It should then add the encrypted operation, the dictionary id, and its own client id to the log
-        pass
+        command = ["put", dictID,key, value]
+        command = ','.join(command)
+        self.send_message(command,self.currentLeader)
     def getValueDict(self, dictID, key):
-        pass
+        command = ["get", dictID, key]
+        command = ','.join(command)
+        self.send_message(command, self.currentLeader)
 
 
     def createUniqueDictID(self):
         '''Use PID + a persistent counter/seq number for creating this'''
-        # TODO: create unique dictionary ID
-        ID = 0
+        ID = self.name + str(self.seqNumber)
+        self.seqNumber +=1
         print(f"The new dictionary ID is: {ID}")
-        pass
+        return ID
 
-    def printDict(self,dictID):
-        # TODO: print client id for all dictionary members and content of dictionary with dictionary id
-        pass
-
-    def printAll(self):
-        #TODO: print dictionary ids for all dict that the client is a member of
-        pass
-
-    def broadcast(self, msg):
-        '''
-        Brodcasting message to all outgoing links
-        '''
-        #TODO: put it in try catch cause some links may fail
-        data = str(self.name) + "," + msg
-        for client in self.outgoing:
-            print(data + " sent to client: " + client)
-            self.soc.sendto(data.encode(), self.outgoing[client])
-
-    def failLink(self, dest):
-        # TODO: keep a list of failed link, check whenever doing broadcast or sening message,
-        # or keep a dictionary of active links or a map etc
-        pass
-
-    def fixLink(self,dest):
-        #TODO: update the list of failed link
-        pass
-
-    def failProcess(self):
-        pass
-    def sendToken(self):
-        '''
-        This function is called through thread every 1 second
-        If it does not have the token, just return from the function
-        If the client has a token, send it to the next one
-        :return: Null, calls itself in a thread again
-        '''
-
-        if self.hasToken:
-            # Nullifying the token before sending it
-            self.hasToken = False
-            # Find the random token receiver from outgoing channels
-            tokenReceiver = random.choice(list(self.outgoing.keys()))
-            # Consider the random loss of the token and if no loss, send it to the recipient
-            if random.random() >= self.tokenLossProb:
-                data = self.name + "," + "token"
-                self.soc.sendto(data.encode(), addrs[tokenReceiver])
-                print(f"Token sent to client: {tokenReceiver}")
-
-        # Start this thread again after one second
-        if self.continueThread:
-            t = threading.Timer(1, self.sendToken)
-            t.start()
 
     def startGUI(self):
         # Choosing the theme
@@ -188,6 +276,7 @@ class client:
         # Create the Window
         window = gui.Window(f'Client {self.name}', layout)
         # Event Loop to process "events" and get the "values" of the inputs
+
         while True:
             event, inputs = window.read()
             if event == gui.WIN_CLOSED:
@@ -248,9 +337,53 @@ class client:
                 self.failProcess()
         window.close()
 
+    def printDict(self, dictID):
+        # TODO: print client id for all dictionary members and content of dictionary with dictionary id
+        pass
+
+    def printAll(self):
+        # TODO: print dictionary ids for all dict that the client is a member of
+        pass
+
+    def failLink(self, dest):
+        # Adds the destination to the list of failed links
+        self.failedLinksList.append(dest)
+
+    def fixLink(self, dest):
+        # Removes the destination from the list of failed links
+        self.failedLinksList.remove(dest)
+
+    def failProcess(self):
+        pass
+
+    def sendToken(self):
+
+        # Start this thread again after one second
+        if self.continueThread:
+            t = threading.Timer(1, self.sendToken)
+            t.start()
+
+    def broadcast(self, msg):
+        data = str(self.name) + "," + msg
+        # TODO: find the client members of the dictionary or it is all of them?????
+
+        for client in clientsList:
+            if client not in self.failedLinksList and client != self.name:
+                if "heartbeat" not in data:
+                    print(data + " sent to client: " + client)
+                self.soc.sendto(data.encode(), addrs[client])
+
+    def send_message(self,msg, receiver):
+        data = str(self.name) + "," + msg
+        if receiver not in self.failedLinksList:
+            print(data + " sent as direct message to client: " + receiver)
+            self.soc.sendto(data.encode(), addrs[receiver])
+
     def starter(self):
         # self.sendToken()
         # _thread.start_new_thread(self.recv, ())
+        # _thread.start_new_thread(self.send_heartbeat(),())
+
         self.startGUI()
 
 

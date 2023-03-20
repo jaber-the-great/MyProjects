@@ -1,10 +1,10 @@
 import rsa
 
-def encrypt(msg, public_key):
-    pass
+def enc(msg, public_key):
+    return rsa.encrypt(msg.encode('utf-8'),public_key)
 
-def decrypt(msg,private_key):
-    pass
+def dec(cipher,private_key):
+    return rsa.decrypt(cipher, private_key).decode('utf-8')
 
 def readPublicKeysFromFile():
     pubKeys = {}
@@ -24,7 +24,7 @@ def readPrivate(clientName):
     return PrivateKey
 
 def generateKeyForDictionary():
-    pass
+    return rsa.newkeys(2048)
 
 def generateAndStoreKeys():
     mystr = "ABCDE"
