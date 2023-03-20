@@ -94,7 +94,7 @@ class client:
                 # self.RecordMessages(sender, ','.join(data[1:]))
 
 
-    def createDictionary(self):
+    def createDictionary(self, generator, members):
         # TODO: create dict ID
         # TODO: create dictionary log: dic_id, clientIDS, dic pub key, all versions of dic private key
         # TODO: check commited by raft
@@ -111,9 +111,18 @@ class client:
 
     def createUniqueDictID(self):
         '''Use PID + a persistent counter/seq number for creating this'''
+        # TODO: create unique dictionary ID
+        ID = 0
+        print(f"The new dictionary ID is: {ID}")
         pass
 
+    def printDict(self,dictID):
+        # TODO: print client id for all dictionary members and content of dictionary with dictionary id
+        pass
 
+    def printAll(self):
+        #TODO: print dictionary ids for all dict that the client is a member of
+        pass
 
     def broadcast(self, msg):
         '''
@@ -125,7 +134,17 @@ class client:
             print(data + " sent to client: " + client)
             self.soc.sendto(data.encode(), self.outgoing[client])
 
+    def failLink(self, dest):
+        # TODO: keep a list of failed link, check whenever doing broadcast or sening message,
+        # or keep a dictionary of active links or a map etc
+        pass
 
+    def fixLink(self,dest):
+        #TODO: update the list of failed link
+        pass
+
+    def failProcess(self):
+        pass
     def sendToken(self):
         '''
         This function is called through thread every 1 second
@@ -160,7 +179,9 @@ class client:
                   [gui.Button('Get'), gui.Text('Dict_ID Key'), gui.InputText(do_not_clear=False, size=10)],
                   [gui.Button('PrintDict'), gui.Text('Dict_ID'), gui.InputText(do_not_clear=False, size=10)],
                   [gui.Button('printAll')],
-                  [gui.Button('failLine'), gui.Text('dest'), gui.InputText(do_not_clear=False, size=10)],
+                  [gui.Button('failLink'), gui.Text('dest'), gui.InputText(do_not_clear=False, size=10)],
+                  [gui.Button('fixLink'), gui.Text('dest'), gui.InputText(do_not_clear=False, size=10)],
+                  [gui.Button('failProcess')],
                   [gui.Text('Prob losing token: %'), gui.InputText(do_not_clear=False, size=10), gui.Button('Submit')]
                   ]
 
@@ -168,7 +189,7 @@ class client:
         window = gui.Window(f'Client {self.name}', layout)
         # Event Loop to process "events" and get the "values" of the inputs
         while True:
-            event, values = window.read()
+            event, inputs = window.read()
             if event == gui.WIN_CLOSED:
                 self.continueThread = False
                 print("Terminating the program ...")
@@ -176,15 +197,55 @@ class client:
             # if event == 'Create':
             #     print("Creating new dictionary")
 
-            if event == 'Generate New Token':
-                self.hasToken = True
-                print("New token Generated")
+            if event == 'Create':
+                # The client_ids are in inputs[0]
+                client_ids = inputs[0].split()
+                print(f"Node {self.name} creates dictionary involving {client_ids}")
+                self.createDictionary(self.name, client_ids)
 
-            if event == 'Submit':
-                # Changing the token loss probability
-                self.tokenLossProb = float(values[0]) / 100
-                print(f"The token loss probability is: {self.tokenLossProb}")
+            if event == 'Put':
+                # The arguments are in inputs[1]
+                args = inputs[1].split()
+                # TODO: check the type ... maybe need to cast. Make it robust
+                dictID = args[0]
+                key = args[1]
+                value = args[2]
+                print(f"Put the key: {key} and value: {value} in dictionary:{dictID}")
+                self.putKeyValueDict(dictID,key,value)
+            if event == 'Get':
+                # The arguments are in inputs[2]
+                args = inputs[2].split()
+                # TODO: check the type ... maybe need to cast. Make it robust
+                dictID = args[0]
+                key = args[1]
+                print(f"Get the value of key: {key} from dictionary:{dictID}")
+                self.getValueDict(dictID,key)
 
+            if event == 'PrintDict':
+                # The client_ids are in inputs[3]
+                dictID = inputs[3]
+                print(f"Print the dictionary: {dictID}")
+                self.printDict(dictID)
+
+            if event == 'printAll':
+                print(f"Print all the dictionaries that client {self.name} is member of them")
+                self.printAll()
+
+            if event == 'failLink':
+                # The destination of fail link in input[4
+                destination = inputs[4]
+                print(f"Failing the link between {self.name} and {destination}")
+                self.failLink(destination)
+
+            if event == 'fixLink':
+                # The destination of fail link in input[4
+                destination = inputs[5]
+                print(f"Fixing the link between {self.name} and {destination}")
+                self.fixLink(destination)
+
+            if event == 'failProcess':
+                print(f"Failing the process at node {self.name}")
+                self.failProcess()
         window.close()
 
     def starter(self):
@@ -198,6 +259,6 @@ if __name__ == "__main__":
     # if len(sys.argv) < 2 or sys.argv[1] not in "ABCDE":
     #     print("Invalid client name for this project. Valid clients are: A, B, C, D, E")
     #     sys.exit(1)
-    # cl = client(sys.argv[1])
-    # cl.starter()
+    cl = client(sys.argv[1])
+    cl.starter()
     pass
