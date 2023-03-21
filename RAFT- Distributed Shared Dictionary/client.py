@@ -122,9 +122,16 @@ class client:
         command = command.split(',')
         type = command[0]
         dictID = command[1]
-        key = command[2]
+
+        if type == "newDict":
+            members = command[2]
+            if self.name in members:
+                self.dictionaries[dictID] = {"Info": command}
+            return
+
         if dictID not in self.dictionaries:
             return None
+        key = command[2]
         if type == "get":
             value = self.dictionaries[dictID][key]
             return value
@@ -136,7 +143,8 @@ class client:
     def saveStateOnDisk(self):
         file = open(self.name + "_state.txt",'w')
         file.write("current term," + str(self.currentTerm) + '\n')
-        file.write("voted for," + self.votedFor + '\n')
+
+        file.write("voted for," + str(self.votedFor) + '\n')
         file.close()
 
     def appendToLogOnDisk(self, data):
@@ -154,14 +162,17 @@ class client:
         value = file.readline().split(',')
         self.currentTerm = int(value[1])
         value = file.readline().split(',')
-        self.votedFor = value[1]
+        if value[1] != None:
+            self.votedFor = value[1]
+        else:
+            self.votedFor = None
     def recv(self):
         # TODO: If follower, respond to the rpcs
         # message format: sender, type, other values
         # print(f"Started to listen at node: {self.name}")
         try:
             while True:
-                data, address = self.soc.recvfrom(4096)
+                data, address = self.soc.recvfrom(1024)
                 data = data.decode().split(',')
                 sender = data[0]
                 if sender in self.failedLinksList:
@@ -171,6 +182,8 @@ class client:
                 if messageType != "heartbeat":
                     print(data)
                 if messageType == "heartbeat":
+                    if self.name== "E":
+                        print(data)
                     self.role = "follower"
                     self.currentLeader = sender
                     term = int(data[2])
@@ -222,19 +235,21 @@ class client:
             print("Timeout happened here")
             _thread.start_new_thread(self.recv, ())
             self.start_election()
+        except:
+            print("can non connect")
 
 
     def createDictionary(self, generator, members):
         ID = self.createUniqueDictID()
         pub , pri = generateKeyForDictionary()
-        dictPirvateKeys = {}
-        for client in members:
-            theKey = enc(pri,self.listOfKeys[client])
-            dictPirvateKeys[client] = theKey
-        print(dictPirvateKeys)
-        command = ['newDict', ID, ,str(pub)]
-        for item in dictPirvateKeys:
-            command.append(str(dictPirvateKeys[item]))
+        # dictPirvateKeys = {}
+        # for client in members:
+        #     theKey = enc(pri,self.listOfKeys[client])
+        #     dictPirvateKeys[client] = theKey
+        # print(dictPirvateKeys)
+        command = ['newDict', ID, members,str(pub)]
+        # for item in dictPirvateKeys:
+        #     command.append(str(dictPirvateKeys[item]))
         command = ','.join(command)
         self.send_message(command, self.currentLeader)
 
@@ -259,7 +274,38 @@ class client:
         print(f"The new dictionary ID is: {ID}")
         return ID
 
+    def printDict(self, dictID):
+        # print client id for all dictionary members and content of dictionary with dictionary id
+        print(f'Dictionary ID:{dictID}')
+        info = self.dictionaries[dictID]['Info']
+        info = info.split(',')
+        members = info[1]
+        print(f'Members of dictionary: {members}')
+        for item in self.dictionaries[dictID]:
+            if item != "Info":
+                print(self.dictionaries[dictID][item])
 
+    def printAll(self):
+        for item in self.dictionaries:
+            print(item)
+
+    def failLink(self, dest):
+        # Adds the destination to the list of failed links
+        self.failedLinksList.append(dest)
+
+    def fixLink(self, dest):
+        # Removes the destination from the list of failed links
+        self.failedLinksList.remove(dest)
+
+    def failProcess(self):
+        self.role = "follower"
+        print("Failing current process")
+
+    def crashRecover(self):
+        self.readLogFromFile()
+        self.readStateFromFile()
+        self.role = 'follower'
+        self.currentLeader = None
     def startGUI(self):
         # Choosing the theme
         gui.theme('DarkGreen3')
@@ -272,8 +318,7 @@ class client:
                   [gui.Button('printAll')],
                   [gui.Button('failLink'), gui.Text('dest'), gui.InputText(do_not_clear=False, size=10)],
                   [gui.Button('fixLink'), gui.Text('dest'), gui.InputText(do_not_clear=False, size=10)],
-                  [gui.Button('failProcess')],
-                  [gui.Text('Prob losing token: %'), gui.InputText(do_not_clear=False, size=10), gui.Button('Submit')]
+                  [gui.Button('failProcess')]
                   ]
 
         # Create the Window
@@ -292,8 +337,10 @@ class client:
             if event == 'Create':
                 # The client_ids are in inputs[0]
 
-                client_ids = inputs[0]
-                client_ids.upper()
+                client_ids = str(inputs[0]).upper()
+                client_ids = client_ids.split()
+                client_ids.append(self.name)
+                client_ids = ''.join(client_ids)
                 print(f"Node {self.name} creates dictionary involving {client_ids}")
                 self.createDictionary(self.name, client_ids)
 
@@ -342,31 +389,7 @@ class client:
                 self.failProcess()
         window.close()
 
-    def printDict(self, dictID):
-        # print client id for all dictionary members and content of dictionary with dictionary id
-        print(dictID)
-        print(self.dictionaries[dictID])
 
-    def printAll(self):
-        for item in self.dictionaries:
-            print(item)
-
-    def failLink(self, dest):
-        # Adds the destination to the list of failed links
-        self.failedLinksList.append(dest)
-
-    def fixLink(self, dest):
-        # Removes the destination from the list of failed links
-        self.failedLinksList.remove(dest)
-
-    def failProcess(self):
-        print("Failing current process")
-
-    def crashRecover(self):
-        self.readLogFromFile()
-        self.readStateFromFile()
-        self.role = 'follower'
-        self.currentLeader = None
 
 
     def broadcast(self, msg):
@@ -377,7 +400,11 @@ class client:
             if client not in self.failedLinksList and client != self.name:
                 if "heartbeat" not in data:
                     print(data + " sent to client: " + client)
-                self.soc.sendto(data.encode(), addrs[client])
+                try:
+                    self.soc.sendto(data.encode(), addrs[client])
+                except:
+                    print("no connection")
+
 
     def send_message(self,msg, receiver):
         data = str(self.name) + "," + msg
@@ -386,9 +413,9 @@ class client:
             self.soc.sendto(data.encode(), addrs[receiver])
 
     def starter(self):
-        # self.sendToken()
-        # _thread.start_new_thread(self.recv, ())
-        # _thread.start_new_thread(self.send_heartbeat(),())
+
+        _thread.start_new_thread(self.recv, ())
+        _thread.start_new_thread(self.send_heartbeat,())
 
         self.startGUI()
 
