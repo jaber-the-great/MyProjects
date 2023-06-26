@@ -1,0 +1,23 @@
+yum -y install gcc make git fuse fuse-devel man-pages gdb curl
+yum -y install cmake
+yum -y install gcc-c++
+yum -y update
+yum -y install python3
+
+
+sudo pip3 install meson
+sudo pip3 install ninja
+
+git clone https://github.com/libfuse/libfuse.git; cd libfuse
+mkdir build; cd build
+meson ..
+
+
+
+curl https://codeload.github.com/mesonbuild/meson/tar.gz/refs/tags/0.61.1 -o meson.tar.gz
+tar -xzvf meson.tar.gz; cd meson-0.61.1
+
+git clone git://github.com/ninja-build/ninja.git && cd ninja
+git checkout release
+./configure.py --bootstrap
+cd ~

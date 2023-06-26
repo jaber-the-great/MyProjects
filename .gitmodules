@@ -1,0 +1,3 @@
+[submodule "Fues-LinuxFileSystem"]
+	path = Fues-LinuxFileSystem
+	url = https://github.com/lawrencekhlim/CS270-FileSystemProject.git
