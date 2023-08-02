@@ -8,4 +8,4 @@
 ### Technical:
 * The table specs and fields are presented in the project ERD
 * Fields' primary key, default values, constraints etc are shown in ERD
-* The LINQ directory provides GUI access for CRUD
+* Implementing CRUD using LINQ
